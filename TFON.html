@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Systems Engineering Safety & Dependency Analyzer</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        code, kbd, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
+        
+        .tab-panel {
+            height: 0;
+            overflow: hidden;
+            visibility: hidden;
+            opacity: 0;
+            display: none;
+        }
+        .tab-panel.active {
+            height: auto;
+            overflow: visible;
+            visibility: visible;
+            opacity: 1;
+            display: block;
+        }
+        
+        .mermaid .node {
+            cursor: pointer !important;
+        }
+    </style>
+</head>
+<body class="h-full text-slate-900 antialiased bg-slate-100">
+
+    <div class="flex h-full overflow-hidden">
+        
+        <aside class="w-72 bg-slate-900 text-white flex flex-col justify-between border-r border-slate-800 shrink-0">
+            <div>
+                <div class="p-6 border-b border-slate-800">
+                    <h1 class="font-bold text-base tracking-tight text-slate-100">TF COIL SAFETY ANALYZER</h1>
+                    <span class="text-[10px] text-slate-400 font-semibold tracking-wider uppercase mt-1 block">Systems Engineering Domain</span>
+                </div>
+
+                <nav class="p-4 space-y-1">
+                    <button onclick="switchTab(event, 'tab1')" class="tab-btn w-full flex items-center justify-between px-4 py-3 text-xs font-semibold uppercase tracking-wider rounded-lg bg-blue-600 text-white shadow-sm transition-all">
+                        <span>PEQ Success Tree</span>
+                        <span class="text-[10px] opacity-60">Success Path</span>
+                    </button>
+                    <button onclick="switchTab(event, 'tab2')" class="tab-btn w-full flex items-center justify-between px-4 py-3 text-xs font-semibold uppercase tracking-wider rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all">
+                        <span>H11.1 Failure Tree</span>
+                        <span class="text-[10px] opacity-60">Fault Cascade</span>
+                    </button>
+                    <button onclick="switchTab(event, 'tab3')" class="tab-btn w-full flex items-center justify-between px-4 py-3 text-xs font-semibold uppercase tracking-wider rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all">
+                        <span>Interaction Maps</span>
+                        <span class="text-[10px] opacity-60">Cross-Over</span>
+                    </button>
+                    <button onclick="switchTab(event, 'tab4')" class="tab-btn w-full flex items-center justify-between px-4 py-3 text-xs font-semibold uppercase tracking-wider rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all">
+                        <span>Master Registry</span>
+                        <span class="text-[10px] opacity-60">Data Index</span>
+                    </button>
+                </nav>
+            </div>
+
+            <div class="p-4 border-t border-slate-800 bg-slate-950/60 space-y-3">
+                <button onclick="exportSystemState()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-md py-2 px-3 text-xs font-medium transition-colors text-center block">
+                    Export Schema Data (JSON)
+                </button>
+                <div class="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
+                    <span id="simulation-status-dot" class="h-1.5 w-1.5 rounded-full bg-slate-500"></span>
+                    <span id="simulation-status-text">Simulation Mode: Nominal</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="flex-1 overflow-y-auto bg-slate-50 p-8">
+            <div class="max-w-7xl mx-auto h-full flex flex-col">
+                
+                <div id="tab1" class="tab-panel active h-full">
+                    <div class="grid grid-cols-3 gap-6 h-full items-start">
+                        <div class="col-span-2 space-y-4">
+                            <div class="border-b border-slate-200 pb-4 flex justify-between items-end">
+                                <div>
+                                    <h2 class="text-lg font-bold text-slate-900">Preemptive Quench (PEQ) Functional Dependency Network</h2>
+                                    <p class="text-xs text-slate-500 mt-0.5">Top-down design layer mapping required engineering capabilities for controlled mitigation execution.</p>
+                                </div>
+                                <button onclick="resetAllFailures()" class="text-xs text-blue-600 hover:text-blue-800 font-semibold uppercase tracking-wider hidden" id="reset-btn-tab1">Clear Simulated Faults</button>
+                            </div>
+                            <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm min-h-[550px] flex items-center justify-center relative">
+                                <div id="canvas-tab1" class="w-full"></div>
+                            </div>
+                        </div>
+                        <div class="col-span-1 inspector-container"></div>
+                    </div>
+                </div>
+
+                <div id="tab2" class="tab-panel h-full">
+                    <div class="grid grid-cols-3 gap-6 h-full items-start">
+                        <div class="col-span-2 space-y-4">
+                            <div class="border-b border-slate-200 pb-4 flex justify-between items-end">
+                                <div>
+                                    <h2 class="text-lg font-bold text-slate-900">H11.1 Unmitigated Fault Tree Analysis</h2>
+                                    <p class="text-xs text-slate-500 mt-0.5">Bottom-up evaluation path highlighting combination logic gates causing catastrophic thermal runaway profiles.</p>
+                                </div>
+                                <button onclick="resetAllFailures()" class="text-xs text-blue-600 hover:text-blue-800 font-semibold uppercase tracking-wider hidden" id="reset-btn-tab2">Clear Simulated Faults</button>
+                            </div>
+                            <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm min-h-[550px] flex items-center justify-center">
+                                <div id="canvas-tab2" class="w-full"></div>
+                            </div>
+                        </div>
+                        <div class="col-span-1 inspector-container"></div>
+                    </div>
+                </div>
+
+                <div id="tab3" class="tab-panel h-full">
+                    <div class="grid grid-cols-3 gap-6 h-full items-start">
+                        <div class="col-span-2 space-y-4">
+                            <div class="border-b border-slate-200 pb-4 flex justify-between items-end">
+                                <div>
+                                    <h2 class="text-lg font-bold text-slate-900">Cross-Boundary Interaction Map</h2>
+                                    <p class="text-xs text-slate-500 mt-0.5">Vulnerability mapping tracing cross-over dependencies where component degradation directly bypasses safety interlocks.</p>
+                                </div>
+                                <button onclick="resetAllFailures()" class="text-xs text-blue-600 hover:text-blue-800 font-semibold uppercase tracking-wider hidden" id="reset-btn-tab3">Clear Simulated Faults</button>
+                            </div>
+                            <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm min-h-[550px] flex items-center justify-center">
+                                <div id="canvas-tab3" class="w-full"></div>
+                            </div>
+                        </div>
+                        <div class="col-span-1 inspector-container"></div>
+                    </div>
+                </div>
+
+                <div id="tab4" class="tab-panel space-y-4">
+                    <div class="border-b border-slate-200 pb-4 flex justify-between items-center">
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-900">Master Engineering Specification Registry</h2>
+                            <p class="text-xs text-slate-500 mt-0.5">Centralized, audited configuration index containing FMECA, HAZOP parameters, and functional boundaries.</p>
+                        </div>
+                        <div class="w-80">
+                            <input type="text" id="registry-search" oninput="filterMasterRegistry()" placeholder="Search specifications index..." class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-medium">
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                    <th class="px-6 py-4 w-1/5">Node Identifier</th>
+                                    <th class="px-6 py-4 w-1/5">Classification</th>
+                                    <th class="px-6 py-4 w-3/5">Functional Context & HAZOP Parameters</th>
+                                </tr>
+                            </thead>
+                            <tbody id="master-table-body" class="divide-y divide-slate-200 text-xs">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Centralized structural database defining system configuration nodes
+        const NODE_SPEC_DATABASE = {
+            "PEQ_SUCCESS": {
+                name: "Successful Preemptive Quench",
+                classification: "Mitigation Target State",
+                classBadge: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+                subsystems: ["Quench Protection System (QPS)", "Central Interlock Logic", "Fast Discharge Loop"],
+                hazop: "HAZOP-Ref: Sec 4.1.2 - Protection against high inductive overvoltage conditions.",
+                fmeca: "Criticality: Category II (Controlled Shutdown). Operational Target Reliability: 99.9999%",
+                mitigation: "Routing magnet energy cleanly to external dumping resistors within 20 milliseconds.",
+                metrics: "Detection Window: <15ms | Allowed Heat Load: <20K rise max",
+                dependsOn: ["DET_LOGIC", "ACT_SYS"]
+            },
+            "DET_LOGIC": {
+                name: "Detection Logic System",
+                classification: "Signal Processing Layer",
+                classBadge: "bg-blue-50 text-blue-700 border border-blue-200",
+                subsystems: ["FPGA Interlock Controllers", "High-Speed Analog Voting Buses"],
+                hazop: "HAZOP-Ref: Logic Blindness vulnerability due to transient EM plasma spikes.",
+                fmeca: "Failure Mode: Single-point controller freeze. Mitigation uses 2-out-of-3 voting hardware.",
+                mitigation: "Isolated dual-redundant UPS backup battery rails attached directly to the logic cabinets.",
+                metrics: "Voting Speed: 2.4μs | Noise Rejection Ratio: 120 dB",
+                dependsOn: ["VOLT_TAP"]
+            },
+            "ACT_SYS": {
+                name: "Actuation Circuits",
+                classification: "Execution System",
+                classBadge: "bg-blue-50 text-blue-700 border border-blue-200",
+                subsystems: ["Thyristor Trigger Modules", "Pneumatic Fast Vent Actuators"],
+                hazop: "HAZOP-Ref: Delayed firing risks localized melting at conductor termination interfaces.",
+                fmeca: "Failure Mode: Gate trigger failure. Criticality: Category I (Catastrophic if combined with hotspot).",
+                mitigation: "Dual parallel capacitor banks for guaranteed punch-through firing energy pulse.",
+                metrics: "Trigger Voltage Peak: 2kV | Peak Current Density Capability: 45kA",
+                dependsOn: ["FD_BREAK"]
+            },
+            "VOLT_TAP": {
+                name: "Voltage Tap Sensors",
+                classification: "Instrumentation Layer",
+                classBadge: "bg-slate-50 text-slate-700 border border-slate-200",
+                subsystems: ["Coil Balance Bridges", "Cryogenic Isolation Amplifiers"],
+                hazop: "HAZOP-Ref: Operational cross-talk from induction coils masking real micro-volt developments.",
+                fmeca: "Failure Mode: Wire shear due to thermal cycling stress. Indication sets off immediate fault trip.",
+                mitigation: "Co-wound redundant pairs following distinct routing geometry channels.",
+                metrics: "Sensitivity Floor: 50μV | Common Mode Voltage Protection: 15kV",
+                dependsOn: []
+            },
+            "FD_BREAK": {
+                name: "Fast Discharge Breakers",
+                classification: "Power Isolation Mechanism",
+                classBadge: "bg-slate-50 text-slate-700 border border-slate-200",
+                subsystems: ["DC Explosive Pyrotechnic Breakers", "Mechanical Counter-acting Contactors"],
+                hazop: "HAZOP-Ref: Contact welding under high induction loads during critical extraction window.",
+                fmeca: "Failure Mode: Contact binding. Redundancy strategy mounts mechanical breakers in series with pyrotechnic backup units.",
+                mitigation: "Strict maintenance calendar swapping main mechanical components every 200 operational discharges.",
+                metrics: "Interruption Capability: 60kA at 3kV DC | Opening Transit Frame: 6.5ms",
+                dependsOn: []
+            },
+            "H11_FAULT": {
+                name: "H11.1 Unmitigated TF Quench",
+                classification: "Catastrophic Failure State",
+                classBadge: "bg-red-50 text-red-700 border border-red-200",
+                subsystems: ["Complete Magnet Assembly Structure", "Cryostat Thermal Vault Blanket"],
+                hazop: "HAZOP-Ref: Massive explosive pressure build-up within liquid helium coolant containment lines.",
+                fmeca: "Criticality: Category I (Catastrophic). Results in irreversible structural deformation of structural casings.",
+                mitigation: "Mechanical over-pressure rupture discs installed natively on vacuum vessels.",
+                metrics: "Potential Mechanical Energy Release: ~2.4 GJ | Estimated Reconstruction Timeline: 14 Months",
+                dependsOn: []
+            },
+            "HOTSPOT": {
+                name: "Superconductor Hotspot Propagation",
+                classification: "Physical Failure Root",
+                classBadge: "bg-amber-50 text-amber-700 border border-amber-200",
+                subsystems: ["Superconducting Cable-In-Conduit (CICC)"],
+                hazop: "HAZOP-Ref: Localized cooling channel obstruction leading to rapid ohmic resistance expansion.",
+                fmeca: "Failure Mode: Localized phase shift. Normal zone propagation velocity accelerates geometrically.",
+                mitigation: "Optimized high-surface-area copper stabilizing matrix integrated inside the strands.",
+                metrics: "Initial Growth Area: <5mm | Localized Peak Temp: 350K within 3 seconds if unmitigated",
+                dependsOn: []
+            },
+            "PEQ_FAIL": {
+                name: "PEQ Safety Barrier Failure",
+                classification: "Safety Loop Collapse",
+                classBadge: "bg-red-50 text-red-700 border border-red-200",
+                subsystems: ["Complete Interlock Safety Loop Layer"],
+                hazop: "HAZOP-Ref: Unchecked cascade due to common-cause sensor environment blindness.",
+                fmeca: "Failure Mode: Complete loss of mitigation response capability. Demands independent passive defense design loops.",
+                mitigation: "Physical passive fail-safe configuration defaults to open dump line state upon power loss.",
+                metrics: "Probability of Failure on Demand (PFD): < 10^-5",
+                dependsOn: []
+            },
+            "INS_BREAK": {
+                name: "Insulation Breakdown",
+                classification: "Dielectric Failure Mode",
+                classBadge: "bg-slate-50 text-slate-700 border border-slate-200",
+                subsystems: ["Ground Wrap Insulation", "Turn-to-turn Isolation Barriers"],
+                hazop: "HAZOP-Ref: Internal arcing bridging structural gaps, leading to severe localized casing punctures.",
+                fmeca: "Failure Mode: Mechanical degradation under high shear stress cycles.",
+                mitigation: "Routine high-potential testing and continuous partial discharge monitoring.",
+                metrics: "Dielectric Minimum Threshold: 20kV DC | Testing Interval: Pre-shot sequences",
+                dependsOn: []
+            },
+            "LOSS_CRY": {
+                name: "Total Loss of Cryogenics",
+                classification: "Facility Supply Failure",
+                classBadge: "bg-slate-50 text-slate-700 border border-slate-200",
+                subsystems: ["Liquid Helium Cryodistribution System", "Vacuum Cryostat Enclosure"],
+                hazop: "HAZOP-Ref: Fast boiling inside cooling pathways expanding lines beyond structural yield points.",
+                fmeca: "Failure Mode: Cryogenic pump lock or cold box isolation valve rupture.",
+                mitigation: "Multi-stage fast safety discharge venting manifold directly to exterior gas collection bladders.",
+                metrics: "Nominal Mass Flow Rate: 50 g/s | Critical Vault Pressure Limit: 20 Bar",
+                dependsOn: []
+            }
+        };
+
+        // Track simulated components in a state mapping object
+        let FAILED_NODES = {};
+        let COMPROMISED_NODES = {};
+        let activeSelectedNodeId = null;
+
+        // Initialize Mermaid Parser Engine
+        mermaid.initialize({ 
+            startOnLoad: false, 
+            theme: 'neutral', 
+            securityLevel: 'loose',
+            flowchart: { useMaxWidth: true, htmlLabels: true }
+        });
+
+        // Failure Cascade Solver (BFS Propagation Model)
+        function computeCascadeFailureStates() {
+            COMPROMISED_NODES = {};
+            let queue = [];
+            
+            // Seed base failures
+            Object.keys(FAILED_NODES).forEach(nodeId => {
+                if (FAILED_NODES[nodeId]) {
+                    queue.push(nodeId);
+                    COMPROMISED_NODES[nodeId] = true;
+                }
+            });
+
+            // Special mapping rule logic checking reverse dependency tracking
+            // In Tab 1, if any underlying child dependency fails, parent structures collapse
+            let iterations = 0;
+            while(queue.length > 0 && iterations < 100) {
+                let current = queue.shift();
+                iterations++;
+                
+                // Scan system components to find out who depends on the broken current node
+                Object.keys(NODE_SPEC_DATABASE).forEach(parentKey => {
+                    const parent = NODE_SPEC_DATABASE[parentKey];
+                    if (parent.dependsOn && parent.dependsOn.includes(current.replace('_V', ''))) {
+                        if (!COMPROMISED_NODES[parentKey]) {
+                            COMPROMISED_NODES[parentKey] = true;
+                            queue.push(parentKey);
+                        }
+                    }
+                });
+
+                // Structural Cross-over rule (Tab 3 logic linkage)
+                if ((current === "FD_BREAK" || current === "FD_BREAK_V") && !COMPROMISED_NODES["PEQ_FAIL"]) {
+                    COMPROMISED_NODES["PEQ_FAIL"] = true;
+                    COMPROMISED_NODES["PEQ_FAIL_V"] = true;
+                    queue.push("PEQ_FAIL");
+                }
+                
+                // If PEQ Fails AND a Hotspot occurs -> Catastrophic H11 Failure state matches AND Gate evaluation
+                if ((COMPROMISED_NODES["PEQ_FAIL"] || COMPROMISED_NODES["PEQ_FAIL_V"]) && (COMPROMISED_NODES["HOTSPOT"])) {
+                    COMPROMISED_NODES["H11_FAULT"] = true;
+                    COMPROMISED_NODES["H11_FAULT_V"] = true;
+                }
+                // If standalone insulation or cryo lines fail -> direct cascade to H11 Fault via OR Gate evaluation
+                if (COMPROMISED_NODES["INS_BREAK"] || COMPROMISED_NODES["LOSS_CRY"]) {
+                    COMPROMISED_NODES["H11_FAULT"] = true;
+                    COMPROMISED_NODES["H11_FAULT_V"] = true;
+                }
+            }
+            
+            // Mirror visual duplicate markers across the global context array definitions
+            Object.keys(COMPROMISED_NODES).forEach(key => {
+                if(!key.endsWith('_V')) {
+                    COMPROMISED_NODES[key + '_V'] = true;
+                }
+            });
+
+            // Update UI Sidebar state display indicators
+            const activeFailCount = Object.keys(FAILED_NODES).filter(k => FAILED_NODES[k]).length;
+            const dot = document.getElementById("simulation-status-dot");
+            const txt = document.getElementById("simulation-status-text");
+            const rst1 = document.getElementById("reset-btn-tab1");
+            const rst2 = document.getElementById("reset-btn-tab2");
+            const rst3 = document.getElementById("reset-btn-tab3");
+
+            if(activeFailCount > 0) {
+                dot.className = "h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse";
+                txt.textContent = `Simulation Mode: ${activeFailCount} Fault(s) Active`;
+                [rst1, rst2, rst3].forEach(btn => btn.classList.remove('hidden'));
+            } else {
+                dot.className = "h-1.5 w-1.5 rounded-full bg-slate-500";
+                txt.textContent = "Simulation Mode: Nominal";
+                [rst1, rst2, rst3].forEach(btn => btn.classList.add('hidden'));
+            }
+        }
+
+        function toggleNodeFailureState(nodeId) {
+            const baseId = nodeId.replace('_V', '');
+            FAILED_NODES[baseId] = !FAILED_NODES[baseId];
+            computeCascadeFailureStates();
+            renderAllGraphs();
+            document.querySelectorAll('.inspector-container').forEach(el => {
+                el.innerHTML = renderNodeDetails(nodeId);
+            });
+        }
+
+        function resetAllFailures() {
+            FAILED_NODES = {};
+            computeCascadeFailureStates();
+            renderAllGraphs();
+            if(activeSelectedNodeId) {
+                window.nodeSelectHandler(activeSelectedNodeId);
+            }
+        }
+
+        // Structural Chart Definitions (Parsed inside the runtime refresh compiler loops)
+        function getTab1GraphText() {
+            return `
+            graph TD
+                PEQ_SUCCESS[Successful PEQ Activation] --> DET_LOGIC[Detection Logic Systems]
+                PEQ_SUCCESS --> ACT_SYS[Actuation Circuits]
+                DET_LOGIC --> VOLT_TAP[Voltage Tap Sensors]
+                ACT_SYS --> FD_BREAK[Fast Discharge Breakers]
+                ${getGraphStylingDirectives()}
+                click PEQ_SUCCESS call nodeSelectHandler
+                click DET_LOGIC call nodeSelectHandler
+                click ACT_SYS call nodeSelectHandler
+                click VOLT_TAP call nodeSelectHandler
+                click FD_BREAK call nodeSelectHandler
+            `;
+        }
+
+        function getTab2GraphText() {
+            return `
+            graph BT
+                HOTSPOT[Superconductor Hotspot Propagation] --> AND_GATE{AND GATE}
+                PEQ_FAIL[PEQ Safety Barrier FAILS] --> AND_GATE
+                AND_GATE --> H11_FAULT[H11.1 Unmitigated TF Quench]
+                INS_BREAK[Insulation Breakdown] --> OR_GATE{OR GATE}
+                LOSS_CRY[Total Loss of Cryogenics] --> OR_GATE
+                OR_GATE --> H11_FAULT
+                ${getGraphStylingDirectives()}
+                style AND_GATE fill:#f8fafc,stroke:#cbd5e1,color:#475569
+                style OR_GATE fill:#f8fafc,stroke:#cbd5e1,color:#475569
+                click H11_FAULT call nodeSelectHandler
+                click HOTSPOT call nodeSelectHandler
+                click PEQ_FAIL call nodeSelectHandler
+                click INS_BREAK call nodeSelectHandler
+                click LOSS_CRY call nodeSelectHandler
+            `;
+        }
+
+        function getTab3GraphText() {
+            return `
+            graph LR
+                subgraph PEQ_Sys [PEQ Functional Units]
+                    FD_BREAK_V[Fast Discharge Breaker Mech]
+                end
+                subgraph H11_Tree [H11.1 Risk Path]
+                    PEQ_FAIL_V[PEQ System Fails] --> H11_FAULT_V[H11.1 Unmitigated Quench]
+                end
+                FD_BREAK_V -.->|Mechanical Jam Triggers| PEQ_FAIL_V
+                ${getGraphStylingDirectives()}
+                click FD_BREAK_V call nodeSelectHandler
+                click PEQ_FAIL_V call nodeSelectHandler
+                click H11_FAULT_V call nodeSelectHandler
+            `;
+        }
+
+        // Color compiler translating application failure matrix vectors to graph visualization commands
+        function getGraphStylingDirectives() {
+            const nodes = ["PEQ_SUCCESS", "DET_LOGIC", "ACT_SYS", "VOLT_TAP", "FD_BREAK", "H11_FAULT", "HOTSPOT", "PEQ_FAIL", "INS_BREAK", "LOSS_CRY", "FD_BREAK_V", "PEQ_FAIL_V", "H11_FAULT_V"];
+            let directives = "";
+            nodes.forEach(n => {
+                const baseId = n.replace('_V', '');
+                if (FAILED_NODES[baseId]) {
+                    // Direct simulated root injection style
+                    directives += `style ${n} fill:#fecdd3,stroke:#e11d48,stroke-width:3px,color:#9f1239\n`;
+                } else if (COMPROMISED_NODES[n]) {
+                    // Cascade compromise style
+                    directives += `style ${n} fill:#ffedd5,stroke:#ea580c,stroke-width:2px,color:#9a3412\n`;
+                } else {
+                    // Nominal static style parameters
+                    if(baseId.includes("SUCCESS")) directives += `style ${n} fill:#f0fdf4,stroke:#16a34a,color:#166534\n`;
+                    else if(baseId.includes("FAULT") || baseId.includes("FAIL")) directives += `style ${n} fill:#fcfcfc,stroke:#b8b8b8,color:#404040\n`;
+                    else directives += `style ${n} fill:#f8fafc,stroke:#cbd5e1,color:#475569\n`;
+                }
+            });
+            return directives;
+        }
+
+        // Rendering engine handling fresh parsing cycles safely inside the window bounds
+        async function renderGraphToElement(elementId, graphDefinition) {
+            const element = document.getElementById(elementId);
+            try {
+                element.removeAttribute('data-processed');
+                const { render } = await mermaid.render(elementId + '-svg', graphDefinition);
+                element.innerHTML = render;
+            } catch (error) {
+                console.error("Layout Engine Processing Fault: ", error);
+                element.innerHTML = `<div class="p-4 text-xs font-mono text-red-700 bg-red-50 rounded border border-red-200">Layout Parse Error: ${error.message}</div>`;
+            }
+        }
+
+        function renderAllGraphs() {
+            renderGraphToElement('canvas-tab1', getTab1GraphText());
+            renderGraphToElement('canvas-tab2', getTab2GraphText());
+            renderGraphToElement('canvas-tab3', getTab3GraphText());
+        }
+
+        // Template Generator rendering the Dynamic Context Inspection Panel
+        function renderInspectorPlaceholder() {
+            return `
+                <div class="bg-white border border-slate-200 border-dashed rounded-xl p-8 text-center text-slate-400 min-h-[550px] flex flex-col justify-center items-center">
+                    <h3 class="font-bold text-xs tracking-wider uppercase text-slate-400">Specification Inspector</h3>
+                    <p class="text-xs text-slate-400 max-w-[220px] mt-2 mx-auto leading-relaxed">Select any active functional unit node from the graph mapping matrix to access underlying engineering documentation metadata blocks.</p>
+                </div>
+            `;
+        }
+
+        function renderNodeDetails(nodeId) {
+            const baseId = nodeId.replace('_V', '');
+            const data = NODE_SPEC_DATABASE[baseId];
+            if (!data) return renderInspectorPlaceholder();
+            
+            const isRootFailure = FAILED_NODES[baseId] ? true : false;
+            const isCompromised = COMPROMISED_NODES[nodeId] ? true : false;
+            
+            let statusBadgeClass = "bg-slate-100 text-slate-800 border-slate-200";
+            let statusText = "NOMINAL OPERATIONAL STATE";
+            if (isRootFailure) {
+                statusBadgeClass = "bg-red-100 text-red-800 border-red-300 font-bold";
+                statusText = "SIMULATED SOURCE FAILURE";
+            } else if (isCompromised) {
+                statusBadgeClass = "bg-amber-100 text-amber-800 border-amber-300 font-semibold animate-pulse";
+                statusText = "DEPENDENCY CHAIN COMPROMISED";
+            }
+
+            return `
+                <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4 sticky top-6">
+                    <div>
+                        <div class="flex justify-between items-start">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${data.classBadge}">${data.classification}</span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${statusBadgeClass}">${statusText}</span>
+                        </div>
+                        <h3 class="font-bold text-base text-slate-900 mt-2 tracking-tight">${data.name}</h3>
+                        <p class="text-[10px] text-slate-400 font-mono mt-0.5 tracking-wider">NODE_UUID_REF: ${baseId}</p>
+                    </div>
+
+                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                        <h4 class="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Fault Injection Sandbox</h4>
+                        <p class="text-[11px] text-slate-500 mt-0.5 leading-normal">Simulate the isolated collapse of this module to verify systemic cascading dependencies.</p>
+                        <button onclick="toggleNodeFailureState('${nodeId}')" class="mt-2.5 w-full text-center text-xs font-semibold uppercase tracking-wider py-1.5 px-3 rounded border transition-all ${isRootFailure ? 'bg-white text-red-600 border-red-200 hover:bg-red-50' : 'bg-slate-900 text-white border-slate-950 hover:bg-slate-800'}">
+                            ${isRootFailure ? 'Retract Simulated Failure State' : 'Inject Simulated Failure State'}
+                        </button>
+                    </div>
+                    
+                    <div class="space-y-3 text-xs border-t border-slate-100 pt-4">
+                        <div>
+                            <h4 class="font-bold text-slate-400 uppercase tracking-wider text-[9px]">Allocated Subsystems</h4>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                ${data.subsystems.map(sub => `<span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-semibold border border-slate-200/40">${sub}</span>`).join('')}
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-bold text-slate-400 uppercase tracking-wider text-[9px]">HAZOP Trace Identification</h4>
+                            <p class="text-slate-600 mt-1 font-medium leading-relaxed">${data.hazop}</p>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-bold text-slate-400 uppercase tracking-wider text-[9px]">FMECA Criticality Profile</h4>
+                            <p class="text-slate-600 mt-1 leading-relaxed">${data.fmeca}</p>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-bold text-slate-400 uppercase tracking-wider text-[9px]">Engineering Mitigation Deployment Protocol</h4>
+                            <p class="text-slate-700 mt-1 bg-slate-50 p-2.5 rounded border border-slate-100 font-mono text-[11px] leading-normal">${data.mitigation}</p>
+                        </div>
+
+                        <div>
+                            <h4 class="font-bold text-slate-400 uppercase tracking-wider text-[9px]">Design Specification Boundaries</h4>
+                            <p class="text-slate-200 font-mono mt-1 bg-slate-900 p-2 rounded text-[10px] tracking-wide">${data.metrics}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Global integration tracking target bound directly to the Mermaid node mapping configurations
+        window.nodeSelectHandler = function(nodeId) {
+            activeSelectedNodeId = nodeId;
+            document.querySelectorAll('.inspector-container').forEach(el => {
+                el.innerHTML = renderNodeDetails(nodeId);
+            });
+        };
+
+        // Navigation Controller
+        function switchTab(evt, tabId) {
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white', 'shadow-sm');
+                btn.classList.add('text-slate-400', 'hover:bg-slate-800', 'hover:text-slate-100');
+            });
+
+            document.getElementById(tabId).classList.add('active');
+            evt.currentTarget.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
+            evt.currentTarget.classList.remove('text-slate-400', 'hover:bg-slate-800', 'hover:text-slate-100');
+            
+            window.dispatchEvent(new Event('resize'));
+        }
+
+        // Live Search Filter Engine for Registry Matrix (Tab 4)
+        function filterMasterRegistry() {
+            const query = document.getElementById('registry-search').value.toLowerCase();
+            const rows = document.querySelectorAll('#master-table-body tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                if (text.includes(query)) {
+                    row.classList.remove('hidden');
+                } else {
+                    row.add('hidden');
+                }
+            });
+        }
+
+        // JSON Schema Exporter Function
+        function exportSystemState() {
+            const outputExportData = {
+                timestamp: new Date().toISOString(),
+                schema_version: "2.1.0",
+                nodes: NODE_SPEC_DATABASE,
+                active_simulated_failures: Object.keys(FAILED_NODES).filter(k => FAILED_NODES[k]),
+                cascade_compromised_nodes: Object.keys(COMPROMISED_NODES).filter(k => COMPROMISED_NODES[k])
+            };
+            
+            const blob = new Blob([JSON.stringify(outputExportData, null, 4)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const downloadAnchorElement = document.createElement('a');
+            downloadAnchorElement.href = url;
+            downloadAnchorElement.download = `safety_dependency_schema_${Math.floor(Date.now() / 1000)}.json`;
+            document.body.appendChild(downloadAnchorElement);
+            downloadAnchorElement.click();
+            document.body.removeChild(downloadAnchorElement);
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialize Runtime Components and Global Injections
+        window.addEventListener('DOMContentLoaded', () => {
+            // Apply neutral inspector panels across workspaces on start
+            document.querySelectorAll('.inspector-container').forEach(el => {
+                el.innerHTML = renderInspectorPlaceholder();
+            });
+
+            // Populate Specifications Table Array Context
+            const tableBody = document.getElementById('master-table-body');
+            Object.keys(NODE_SPEC_DATABASE).forEach(key => {
+                const rowData = NODE_SPEC_DATABASE[key];
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors border-b border-slate-200/80";
+                tr.innerHTML = `
+                    <td class="px-6 py-4 font-mono font-bold text-slate-900 tracking-wider">${key}</td>
+                    <td class="px-6 py-4"><span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${rowData.classBadge}">${rowData.classification}</span></td>
+                    <td class="px-6 py-4 text-slate-600 leading-relaxed"><strong class="text-slate-900 block font-semibold mb-0.5">${rowData.name}</strong>${rowData.hazop}<br><span class="text-slate-400 text-[11px] mt-1 block">${rowData.fmeca}</span></td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            // Bootstrap diagrams
+            renderAllGraphs();
+        });
+    </script>
+</body>
+</html>
