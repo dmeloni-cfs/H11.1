@@ -624,36 +624,32 @@
 
         // Refactored dynamic generator inserting nested systems architecture mapping layout
         function getTab1GraphText() {
-            let baseTree = `
-            graph TD
-                PEQ_SUCCESS[Successful PEQ Activation] --> DET_LOGIC[Detection Logic Systems]
-                PEQ_SUCCESS --> ACT_SYS[Actuation Circuits]
-                DET_LOGIC --> VOLT_TAP[Voltage Tap Sensors]
-                ACT_SYS --> FD_BREAK[Fast Discharge Breakers]
-            `;
+    let baseTree = `graph TD\n`;
+    baseTree += `    PEQ_SUCCESS[Successful PEQ Activation] --> DET_LOGIC[Detection Logic Systems]\n`;
+    baseTree += `    PEQ_SUCCESS --> ACT_SYS[Actuation Circuits]\n`;
+    baseTree += `    DET_LOGIC --> VOLT_TAP[Voltage Tap Sensors]\n`;
+    baseTree += `    ACT_SYS --> FD_BREAK[Fast Discharge Breakers]\n`;
 
-            Object.keys(NODE_GROUPS).forEach(groupName => {
-                if (activePathwayFilter === "FULL_TREE" || activePathwayFilter === groupName) {
-                    baseTree += `\n    subgraph ${groupName} [${groupName} Subsystem Boundary]`;
-                    NODE_GROUPS[groupName].forEach(nodeId => {
-                        baseTree += `\n        DET_LOGIC --> ${nodeId}[${NODE_SPEC_DATABASE[nodeId] ? NODE_SPEC_DATABASE[nodeId].name : nodeId}]`;
-                    });
-                    baseTree += `\n    end`;
-                    baseTree += `\n    style ${groupName} fill:#f8fafc,stroke:#cbd5e1,stroke-dasharray: 3 3`;
-                }
+    Object.entries(NODE_GROUPS).forEach(([groupName, nodes]) => {
+        if (activePathwayFilter === "FULL_TREE" || activePathwayFilter === groupName) {
+            baseTree += `    subgraph ${groupName} [${groupName} Cluster]\n`;
+            nodes.forEach(nodeId => {
+                const nodeName = NODE_SPEC_DATABASE[nodeId] ? NODE_SPEC_DATABASE[nodeId].name : nodeId;
+                // SANITIZED LABEL: Removed special characters and limited length
+                const cleanLabel = nodeName.replace(/[:()]/g, '');
+                baseTree += `        DET_LOGIC --> ${nodeId}["${cleanLabel}"]\n`;
             });
-
-            baseTree += `\n${getGraphStylingDirectives()}`;
-            
-            const coreNodes = ["PEQ_SUCCESS", "DET_LOGIC", "ACT_SYS", "VOLT_TAP", "FD_BREAK"];
-            coreNodes.forEach(n => { baseTree += `\nclick ${n} call nodeSelectHandler`; });
-            
-            Object.values(NODE_GROUPS).flat().forEach(n => {
-                baseTree += `\nclick ${n} call nodeSelectHandler`;
-            });
-
-            return baseTree;
+            baseTree += `    end\n`;
         }
+    });
+
+    // Add interactivity
+    Object.keys(NODE_SPEC_DATABASE).forEach(n => {
+        baseTree += `    click ${n} nodeSelectHandler\n`;
+    });
+
+    return baseTree + `\n${getGraphStylingDirectives()}`;
+}
 
         function getTab2GraphText() {
             return `
@@ -949,25 +945,30 @@
             URL.revokeObjectURL(url);
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            mermaid.initialize({
-                startOnLoad: false,
-                securityLevel: 'loose',
-                theme: 'base',
-                flowchart: {
-                    useMaxWidth: false,
-                    htmlLabels: true
-                }
-            });
-            
-            document.querySelectorAll('.inspector-container').forEach(el => {
-                el.innerHTML = renderInspectorPlaceholder();
-            });
-            
-            computeSystemFrequencyTotals();
-            refreshMasterRegistryTable();
-            renderAllGraphs();
-        });
+        window.addEventListener('DOMContentLoaded', async () => {
+    // Initialize Mermaid with strict security settings for stable parsing
+    mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: 'loose',
+        theme: 'base',
+        flowchart: {
+            useMaxWidth: false,
+            htmlLabels: true
+        }
+    });
+    
+    // Initial UI load
+    document.querySelectorAll('.inspector-container').forEach(el => {
+        el.innerHTML = renderInspectorPlaceholder();
+    });
+    
+    computeSystemFrequencyTotals();
+    refreshMasterRegistryTable();
+    
+    // Wait a brief moment to ensure layout containers have calculated dimensions
+    await new Promise(r => setTimeout(r, 100));
+    renderAllGraphs();
+});
     </script>
 </body>
 </html>

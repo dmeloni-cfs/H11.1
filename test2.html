@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Pathway & Fault Tree Analysis Tool</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        /* Professional Dark Theme */
+        :root {
+            --bg-color: #1e1e2e;
+            --panel-bg: #282a36;
+            --text-main: #f8f8f2;
+            --text-muted: #6272a4;
+            --accent: #8be9fd;
+            --border: #44475a;
+            --box-bg: #21222c;
+            --box-stroke: #6272a4;
+            --box-hover: #ff79c6;
+        }
+
+        body {
+            margin: 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color); color: var(--text-main);
+            display: flex; height: 100vh; overflow: hidden;
+        }
+
+        /* Layout Structure */
+        #sidebar { width: 260px; background-color: var(--panel-bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; z-index: 10; }
+        #main-workspace { flex-grow: 1; position: relative; cursor: grab; }
+        #main-workspace:active { cursor: grabbing; }
+        #inspection-panel { width: 320px; background-color: var(--panel-bg); border-left: 1px solid var(--border); padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; z-index: 10; }
+
+        /* Sidebar Controls */
+        h2 { font-size: 1.1rem; margin-top: 0; margin-bottom: 15px; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .control-group { margin-bottom: 20px; }
+        .control-label { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; display: block; text-transform: uppercase; letter-spacing: 1px; }
+        
+        select, .tab-btn {
+            width: 100%; background-color: var(--bg-color); color: var(--text-main);
+            border: 1px solid var(--border); padding: 10px; border-radius: 4px;
+            margin-bottom: 10px; cursor: pointer; transition: 0.2s; font-family: inherit;
+        }
+        select:hover, .tab-btn:hover { border-color: var(--accent); }
+        .tab-btn.active { background-color: var(--accent); color: #000; font-weight: bold; }
+
+        /* D3 Elements: Rectangles and Links */
+        svg { width: 100%; height: 100%; }
+        
+        .node rect {
+            fill: var(--box-bg);
+            stroke: var(--box-stroke);
+            stroke-width: 2px;
+            rx: 6px; /* Rounded corners */
+            ry: 6px;
+            cursor: pointer;
+            transition: stroke 0.3s;
+        }
+        .node rect.has-children { stroke: #50fa7b; } /* Highlight nodes that can be expanded */
+        .node:hover rect { stroke: var(--box-hover); stroke-width: 3px; }
+        
+        .node text.title { font-size: 14px; fill: var(--text-main); font-weight: bold; pointer-events: none; }
+        .node text.subtitle { font-size: 10px; fill: var(--text-muted); pointer-events: none; }
+        
+        .link { fill: none; stroke: #44475a; stroke-width: 2px; }
+
+        /* Inspection Panel Elements */
+        .info-label { color: var(--text-muted); font-size: 0.85rem; margin-top: 15px; display: block; border-bottom: 1px solid var(--border); padding-bottom: 3px; }
+        .info-data { margin-top: 8px; font-size: 0.95rem; line-height: 1.4; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h2>Pathways Model</h2>
+        
+        <div class="control-group">
+            <span class="control-label">Views</span>
+            <button class="tab-btn active" onclick="switchTab('PEQ', this)">PEQ Top Event</button>
+            <button class="tab-btn" onclick="switchTab('UNMIT', this)">Unmitigated</button>
+        </div>
+
+        <div class="control-group" id="filter-group">
+            <span class="control-label">Isolate Pathway</span>
+            <select id="pathway-filter" onchange="filterPathway(this.value)">
+                <option value="ALL">Show All Systems</option>
+                <option value="MAGS">MAGS - Magnet Systems</option>
+                <option value="EPDS">EPDS - Power Dist.</option>
+                <option value="VACV">VACV - Vacuum Vessel</option>
+                <option value="VACP">VACP - Vacuum Pumping</option>
+                <option value="CRYO">CRYO - Cryogenics</option>
+                <option value="CWS">CWS - Cooling Water</option>
+                <option value="SERV">SERV - Utilities</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="main-workspace">
+        <svg id="tree-svg"></svg>
+    </div>
+
+    <div id="inspection-panel">
+        <h2>Node Inspector</h2>
+        <span class="info-label">System / Node ID</span>
+        <div class="info-data" id="node-name">Select a node...</div>
+        
+        <span class="info-label">Failure Mode Description</span>
+        <div class="info-data" id="node-desc">-</div>
+
+        <span class="info-label">Data Traceability</span>
+        <div class="info-data" id="node-source">-</div>
+        
+        <span class="info-label">Internal Logic</span>
+        <div class="info-data" style="color: #ffb86c; font-family: monospace;">Gate: OR<br>Status: Active</div>
+    </div>
+
+    <script>
+        // 1. MASTER DATASET
+        const masterPEQData = {
+            name: "PEQ", desc: "Pre-Emptive Quench Trigger Event", source: "Top Level",
+            children: [
+                { name: "MAGS", desc: "Magnet Systems", source: "HAZOP-01", children: [{ name: "CS", desc: "Central Solenoid Failure Modes", source: "FMECA-CS-001" }] },
+                { name: "EPDS", desc: "Electrical Power Distribution", source: "HAZOP-02", children: [{ name: "EXE", desc: "Experimental Electrical Power Failure", source: "FMECA-EXE-001" }] },
+                { name: "VACV", desc: "Vacuum Vessel Systems", source: "HAZOP-03", children: [{ name: "Leaks", desc: "Vacuum Leak Modes", source: "FMECA-VACV-001" }] },
+                { name: "VACP", desc: "Vacuum Pumping Systems", source: "HAZOP-04", children: [{ name: "CPMP", desc: "Cryostat Pumping Modes", source: "FMECA-VACP-001" }, { name: "SPMP", desc: "Service Pumping Failure Modes", source: "FMECA-VACP-002" }] },
+                { name: "CRYO", desc: "Cryogenic Systems", source: "HAZOP-05", children: [{ name: "CRYP", desc: "Cryoplant Failures", source: "FMECA-CRYO-001" }, { name: "CRYD", desc: "Cryodistribution Fails", source: "FMECA-CRYO-002" }] },
+                { name: "CWS", desc: "Cooling Water Systems", source: "HAZOP-06", children: [{ name: "CCWS", desc: "Component Cooling Water", source: "FMECA-CWS-001" }, { name: "CLWS", desc: "Closed Loop Water System", source: "FMECA-CWS-002" }] },
+                { name: "SERV", desc: "Service & Utility Systems", source: "HAZOP-07", children: [{ name: "NDS", desc: "Nitrogen Distribution System", source: "FMECA-SERV-001" }, { name: "CDA", desc: "Compressed Dry Air System", source: "FMECA-SERV-002" }] }
+            ]
+        };
+
+        const unmitigatedData = { name: "UNMIT", desc: "Unmitigated Quench Event", source: "Top Level", children: [{name: "Vessel Breach", desc: "Containment failure", source: "QRA-01"}] };
+
+        // 2. CONFIGURATION & DIMENSIONS
+        const boxWidth = 140;
+        const boxHeight = 50;
+        const margin = {top: 20, right: 120, bottom: 20, left: 120};
+        const width = document.getElementById('main-workspace').clientWidth;
+        const height = document.getElementById('main-workspace').clientHeight;
+
+        const svg = d3.select("#tree-svg");
+        const svgGroup = svg.append("g");
+
+        // Pan and Zoom
+        const zoom = d3.zoom().scaleExtent([0.2, 2]).on("zoom", (e) => svgGroup.attr("transform", e.transform));
+        svg.call(zoom);
+
+        let i = 0, duration = 500, root;
+        // Adjust node sizes to accommodate the new boxes (height padding, width padding)
+        const treeMap = d3.tree().nodeSize([boxHeight * 1.5, boxWidth * 2]);
+
+        // 3. FILTERING LOGIC
+        function filterPathway(systemName) {
+            if (systemName === "ALL") {
+                initializeTree(masterPEQData);
+                return;
+            }
+            // Clone the root but only keep the selected child pathway
+            const filteredData = {
+                ...masterPEQData,
+                children: masterPEQData.children.filter(child => child.name === systemName)
+            };
+            initializeTree(filteredData);
+        }
+
+        // 4. RENDERING ENGINE
+        function update(source) {
+            const treeData = treeMap(root);
+            const nodes = treeData.descendants();
+            const links = treeData.descendants().slice(1);
+
+            // Calculate x and y coordinates dynamically
+            nodes.forEach(d => { d.y = d.depth * 280; });
+
+            const node = svgGroup.selectAll('g.node').data(nodes, d => d.id || (d.id = ++i));
+
+            // Enter new nodes
+            const nodeEnter = node.enter().append('g')
+                .attr('class', 'node')
+                .attr("transform", d => `translate(${source.y0},${source.x0})`);
+
+            // Add the Rectangular Box
+            nodeEnter.append('rect')
+                .attr('width', boxWidth)
+                .attr('height', boxHeight)
+                .attr('x', -(boxWidth / 2))
+                .attr('y', -(boxHeight / 2))
+                .attr('class', d => (d.children || d._children) ? 'has-children' : '')
+                .on('click', handleNodeClick);
+
+            // Add the Main Title (System Name)
+            nodeEnter.append('text')
+                .attr('class', 'title')
+                .attr('dy', '-0.2em')
+                .attr('text-anchor', 'middle')
+                .text(d => d.data.name);
+
+            // Add the Subtitle (Source Data) inside the box
+            nodeEnter.append('text')
+                .attr('class', 'subtitle')
+                .attr('dy', '1.2em')
+                .attr('text-anchor', 'middle')
+                .text(d => d.data.source || "System Node");
+
+            const nodeUpdate = nodeEnter.merge(node);
+
+            // Transition nodes to new positions
+            nodeUpdate.transition().duration(duration)
+                .attr("transform", d => `translate(${d.y},${d.x})`);
+
+            // Update box styling based on state
+            nodeUpdate.select('rect')
+                .attr('class', d => d._children ? 'has-children' : '');
+
+            // Exit nodes
+            const nodeExit = node.exit().transition().duration(duration)
+                .attr("transform", d => `translate(${source.y},${source.x})`)
+                .remove();
+            nodeExit.select('rect').attr('width', 0).attr('height', 0);
+            nodeExit.select('text').style('fill-opacity', 1e-6);
+
+            // Link logic (Modified to attach to edges of boxes, not centers)
+            const link = svgGroup.selectAll('path.link').data(links, d => d.id);
+
+            const linkEnter = link.enter().insert('path', "g")
+                .attr("class", "link")
+                .attr('d', d => {
+                    const o = {x: source.x0, y: source.y0};
+                    return boxDiagonal(o, o);
+                });
+
+            const linkUpdate = linkEnter.merge(link);
+            linkUpdate.transition().duration(duration).attr('d', d => boxDiagonal(d.parent, d));
+
+            const linkExit = link.exit().transition().duration(duration)
+                .attr('d', d => {
+                    const o = {x: source.x, y: source.y};
+                    return boxDiagonal(o, o);
+                }).remove();
+
+            nodes.forEach(d => { d.x0 = d.x; d.y0 = d.y; });
+        }
+
+        // Custom curve function to connect edges of rectangles
+        function boxDiagonal(s, d) {
+            const srcY = s.y + (boxWidth / 2); // Right edge of parent
+            const dstY = d.y - (boxWidth / 2); // Left edge of child
+            return `M ${srcY} ${s.x}
+                    C ${(srcY + dstY) / 2} ${s.x},
+                      ${(srcY + dstY) / 2} ${d.x},
+                      ${dstY} ${d.x}`;
+        }
+
+        // 5. INTERACTION LOGIC
+        function handleNodeClick(event, d) {
+            // 1. Update Inspection Panel
+            document.getElementById('node-name').innerText = d.data.name || "N/A";
+            document.getElementById('node-desc').innerText = d.data.desc || "No description available.";
+            document.getElementById('node-source').innerText = d.data.source || "No data linked.";
+
+            // 2. Toggle Children Open/Closed
+            if (d.children) {
+                d._children = d.children;
+                d.children = null;
+            } else {
+                d.children = d._children;
+                d._children = null;
+            }
+            update(d);
+        }
+
+        function initializeTree(data) {
+            svgGroup.selectAll("*").remove();
+            root = d3.hierarchy(data, d => d.children);
+            root.x0 = height / 2;
+            root.y0 = 0;
+            update(root);
+            
+            // Re-center camera based on current view size
+            svg.transition().duration(750).call(
+                zoom.transform, 
+                d3.zoomIdentity.translate(margin.left, height/2).scale(0.8)
+            );
+        }
+
+        function switchTab(viewType, btnElement) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
+            
+            // Toggle visibility of the filter dropdown (only relevant for PEQ)
+            document.getElementById('filter-group').style.display = (viewType === 'PEQ') ? 'block' : 'none';
+            document.getElementById('pathway-filter').value = "ALL";
+
+            if (viewType === 'PEQ') initializeTree(masterPEQData);
+            else if (viewType === 'UNMIT') initializeTree(unmitigatedData);
+        }
+
+        // Boot
+        initializeTree(masterPEQData);
+
+    </script>
+</body>
+</html>
