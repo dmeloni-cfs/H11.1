@@ -14,6 +14,7 @@
             --text-muted: #6272a4;
             --accent: #8be9fd;
             --accent-green: #50fa7b;
+            --accent-orange: #ffb86c;
             --accent-red: #ff5555;
             --border: #44475a;
             --box-bg: #21222c;
@@ -31,11 +32,8 @@
         #sidebar { width: 260px; background-color: var(--panel-bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; z-index: 10; overflow-y: auto; }
         #main-workspace { flex-grow: 1; position: relative; cursor: grab; }
         #main-workspace:active { cursor: grabbing; }
-        
-        /* Registry Workspace Styling */
         #registry-workspace { flex-grow: 1; display: none; padding: 40px; overflow-y: auto; background-color: var(--bg-color); }
-        
-        #inspection-panel { width: 320px; background-color: var(--panel-bg); border-left: 1px solid var(--border); padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; z-index: 10; }
+        #inspection-panel { width: 320px; background-color: var(--panel-bg); border-left: 1px solid var(--border); padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; z-index: 10; overflow-y: auto;}
 
         /* Sidebar Controls */
         h2 { font-size: 1.1rem; margin-top: 0; margin-bottom: 15px; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 10px; }
@@ -54,7 +52,7 @@
         .action-row .action-btn { font-size: 0.85rem; padding: 8px; background-color: #3b3d4e; border: none; }
         .action-row .action-btn:hover { background-color: var(--text-muted); color: white; }
 
-        /* D3 Elements: Rectangles and Links */
+        /* D3 Elements */
         svg { width: 100%; height: 100%; }
         
         .node rect {
@@ -64,13 +62,16 @@
         .node rect.has-children { stroke: var(--accent-green); }
         .node:hover rect { stroke: var(--box-hover); stroke-width: 3px; }
         
-        .node text.title { font-size: 14px; fill: var(--text-main); font-weight: bold; pointer-events: none; }
+        .node text.title { font-size: 13px; fill: var(--text-main); font-weight: bold; pointer-events: none; }
         .node text.subtitle { font-size: 10px; fill: var(--text-muted); pointer-events: none; }
+        .node text.peq-data { font-size: 10px; fill: var(--accent-orange); font-weight: bold; pointer-events: none; }
+        
         .link { fill: none; stroke: #44475a; stroke-width: 2px; }
 
         /* Inspection Panel Elements */
         .info-label { color: var(--text-muted); font-size: 0.85rem; margin-top: 15px; display: block; border-bottom: 1px solid var(--border); padding-bottom: 3px; }
         .info-data { margin-top: 8px; font-size: 0.95rem; line-height: 1.4; }
+        .tag { display: inline-block; padding: 3px 8px; background-color: #44475a; border-radius: 4px; font-size: 0.8rem; margin-top: 5px; }
 
         /* Registry Tab Specific CSS */
         .registry-header { margin-bottom: 30px; line-height: 1.6; }
@@ -180,7 +181,7 @@
                         <em>Failure Mode:</em> Seal degradation or structural micro-crack. Criticality: Category II.
                     </td>
                 </tr>
-                </tbody>
+            </tbody>
         </table>
     </div>
 
@@ -192,17 +193,51 @@
         <span class="info-label">Failure Mode Description</span>
         <div class="info-data" id="node-desc">-</div>
 
+        <span class="info-label">Metrics & Scoring</span>
+        <div class="info-data">
+            <span class="tag">Initial Lvl: <span id="node-init-lvl">-</span></span>
+            <span class="tag">Final Lvl: <span id="node-final-lvl">-</span></span>
+        </div>
+
+        <span class="info-label">Mitigation Strategy</span>
+        <div class="info-data" id="node-mitigation" style="color: var(--accent-green);">-</div>
+
         <span class="info-label">Data Traceability</span>
         <div class="info-data" id="node-source">-</div>
     </div>
 
     <script>
-        // 1. MASTER DATASET
+        // 1. DATA AND SCORING LOGIC
+        // Converts the 1, 2, 3, 4 score into the specific PEQ numerical contribution
+        function scoreToPEQ(score) {
+            const map = { 1: 0, 2: 0.1, 3: 1, 4: 10 };
+            return map[score] || 0;
+        }
+
         const masterPEQData = {
             name: "PEQ", desc: "Pre-Emptive Quench Trigger Event", source: "Top Level",
             children: [
                 { name: "MAGS", desc: "Magnet Systems", source: "HAZOP-01", children: [{ name: "CS", desc: "Central Solenoid Failure Modes", source: "FMECA-CS-001" }] },
-                { name: "EPDS", desc: "Electrical Power Distribution", source: "HAZOP-02", children: [{ name: "EXE", desc: "Experimental Electrical Power Failure", source: "FMECA-EXE-001" }] },
+                { 
+                    name: "EPDS", desc: "Electrical Power Distribution", source: "HAZOP-02", 
+                    children: [
+                        { 
+                            name: "EXE", desc: "Experimental Electrical Power Failure", source: "FMECA-EXE-001",
+                            children: [
+                                // NEW EXE SUB-NODE IMPLEMENTED HERE
+                                {
+                                    name: "Loss of Power Supply Controls",
+                                    desc: "Failure of controls leading to unmitigated current ramp rate violations.",
+                                    source: "FMECA-EXE-001-A",
+                                    initialLevel: 2,
+                                    finalLevel: 2,
+                                    mitigation: "SDDIPS-1284",
+                                    score: 2 // This score drives the 0.1 PEQ calculation
+                                }
+                            ] 
+                        }
+                    ] 
+                },
                 { name: "VACV", desc: "Vacuum Vessel Systems", source: "HAZOP-03", children: [{ name: "Leaks", desc: "Vacuum Leak Modes", source: "FMECA-VACV-001" }] },
                 { name: "VACP", desc: "Vacuum Pumping Systems", source: "HAZOP-04", children: [{ name: "CPMP", desc: "Cryostat Pumping Modes", source: "FMECA-VACP-001" }, { name: "SPMP", desc: "Service Pumping Failure Modes", source: "FMECA-VACP-002" }] },
                 { name: "CRYO", desc: "Cryogenic Systems", source: "HAZOP-05", children: [{ name: "CRYP", desc: "Cryoplant Failures", source: "FMECA-CRYO-001" }, { name: "CRYD", desc: "Cryodistribution Fails", source: "FMECA-CRYO-002" }] },
@@ -213,12 +248,11 @@
 
         const unmitigatedData = { name: "UNMIT", desc: "Unmitigated Quench Event", source: "Top Level", children: [{name: "Vessel Breach", desc: "Containment failure", source: "QRA-01"}] };
 
-        // 2. CONFIGURATION & DIMENSIONS
-        const boxWidth = 140;
-        const boxHeight = 50;
+        // 2. CONFIGURATION & DIMENSIONS (Slightly taller boxes to fit 3 lines)
+        const boxWidth = 160;
+        const boxHeight = 70;
         const margin = {top: 20, right: 120, bottom: 20, left: 120};
         
-        // Grab D3 container dimensions dynamically
         const workspace = document.getElementById('main-workspace');
         const svg = d3.select("#tree-svg");
         const svgGroup = svg.append("g");
@@ -231,60 +265,54 @@
 
         // 3. TREE ACTIONS & FILTERING
         function filterPathway(systemName) {
-            if (systemName === "ALL") {
-                initializeTree(masterPEQData);
-                return;
-            }
-            const filteredData = {
-                ...masterPEQData,
-                children: masterPEQData.children.filter(child => child.name === systemName)
-            };
+            if (systemName === "ALL") { initializeTree(masterPEQData); return; }
+            const filteredData = { ...masterPEQData, children: masterPEQData.children.filter(child => child.name === systemName) };
             initializeTree(filteredData);
         }
 
-        // Recursive function to open all nodes
         function expand(d) {
-            if (d._children) {
-                d.children = d._children;
-                d._children = null;
-            }
+            if (d._children) { d.children = d._children; d._children = null; }
             if (d.children) d.children.forEach(expand);
         }
 
-        function expandAll() {
-            if (!root) return;
-            expand(root);
-            update(root);
-        }
+        function expandAll() { if (!root) return; expand(root); update(root); }
 
-        // Recursive function to close all nodes (keeps top level visible)
         function collapse(d) {
-            if (d.children) {
-                d._children = d.children;
-                d._children.forEach(collapse);
-                d.children = null;
-            }
+            if (d.children) { d._children = d.children; d._children.forEach(collapse); d.children = null; }
         }
 
         function collapseAll() {
             if (!root || !root.children) return;
-            root.children.forEach(collapse);
-            update(root);
-            
-            // Recenter view on collapse
-            svg.transition().duration(750).call(
-                zoom.transform, 
-                d3.zoomIdentity.translate(margin.left, workspace.clientHeight/2).scale(0.8)
-            );
+            root.children.forEach(collapse); update(root);
+            svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(margin.left, workspace.clientHeight/2).scale(0.8));
         }
 
-        // 4. RENDERING ENGINE
+        // 4. RENDERING ENGINE & CALCULATION ROLLUP
         function update(source) {
             const treeData = treeMap(root);
             const nodes = treeData.descendants();
             const links = treeData.descendants().slice(1);
 
-            nodes.forEach(d => { d.y = d.depth * 280; });
+            // BOTTOM-UP PEQ CALCULATION ROLLUP
+            // Traverse nodes bottom-up to calculate sum of PEQs
+            root.eachAfter(node => {
+                let currentTotal = 0;
+                
+                // If it's a leaf node with a score
+                if (node.data.score !== undefined) {
+                    currentTotal = scoreToPEQ(node.data.score);
+                } 
+                // If it has children, sum their contributions
+                else if (node.children || node._children) {
+                    let kids = node.children || node._children;
+                    kids.forEach(child => {
+                        currentTotal += (child.peqTotal || 0);
+                    });
+                }
+                node.peqTotal = currentTotal;
+            });
+
+            nodes.forEach(d => { d.y = d.depth * 320; }); // Widened space between nodes
 
             const node = svgGroup.selectAll('g.node').data(nodes, d => d.id || (d.id = ++i));
 
@@ -300,21 +328,49 @@
                 .attr('class', d => (d.children || d._children) ? 'has-children' : '')
                 .on('click', handleNodeClick);
 
+            // Line 1: Title
             nodeEnter.append('text')
                 .attr('class', 'title')
-                .attr('dy', '-0.2em')
+                .attr('dy', '-0.8em')
                 .attr('text-anchor', 'middle')
-                .text(d => d.data.name);
+                .text(d => {
+                    // Truncate very long names for the box visual
+                    return d.data.name.length > 20 ? d.data.name.substring(0, 20) + "..." : d.data.name;
+                });
 
+            // Line 2: Source / Subtitle
             nodeEnter.append('text')
                 .attr('class', 'subtitle')
-                .attr('dy', '1.2em')
+                .attr('dy', '0.6em')
                 .attr('text-anchor', 'middle')
                 .text(d => d.data.source || "System Node");
+
+            // Line 3: Dynamic PEQ Text
+            nodeEnter.append('text')
+                .attr('class', 'peq-data')
+                .attr('dy', '2.0em')
+                .attr('text-anchor', 'middle')
+                .text(d => {
+                    // Formatting based on whether it is a child node or a parent node
+                    if (!d.children && !d._children && d.data.score !== undefined) {
+                        return `Expected PEQ Contrib: ${d.peqTotal.toFixed(1)}`;
+                    } else if (d.depth === 0) {
+                        return `Total System PEQs: ${d.peqTotal.toFixed(1)}`;
+                    } else {
+                        return `Total Expected PEQs: ${d.peqTotal.toFixed(1)}`;
+                    }
+                });
 
             const nodeUpdate = nodeEnter.merge(node);
             nodeUpdate.transition().duration(duration).attr("transform", d => `translate(${d.y},${d.x})`);
             nodeUpdate.select('rect').attr('class', d => d._children ? 'has-children' : '');
+            
+            // Re-bind the updated text data to account for dynamic changes during expand/collapse
+            nodeUpdate.select('.peq-data').text(d => {
+                if (!d.children && !d._children && d.data.score !== undefined) return `Expected PEQ Contrib: ${d.peqTotal.toFixed(1)}`;
+                if (d.depth === 0) return `Total System PEQs: ${d.peqTotal.toFixed(1)}`;
+                return `Total Expected PEQs: ${d.peqTotal.toFixed(1)}`;
+            });
 
             const nodeExit = node.exit().transition().duration(duration)
                 .attr("transform", d => `translate(${source.y},${source.x})`).remove();
@@ -346,6 +402,11 @@
             document.getElementById('node-name').innerText = d.data.name || "N/A";
             document.getElementById('node-desc').innerText = d.data.desc || "No description available.";
             document.getElementById('node-source').innerText = d.data.source || "No data linked.";
+            
+            // New fields populated here
+            document.getElementById('node-init-lvl').innerText = d.data.initialLevel || "-";
+            document.getElementById('node-final-lvl').innerText = d.data.finalLevel || "-";
+            document.getElementById('node-mitigation').innerText = d.data.mitigation || "None registered";
 
             if (d.children) {
                 d._children = d.children;
@@ -370,34 +431,27 @@
             );
         }
 
-        // Tab Switching Logic including DOM management for different workspaces
         function switchTab(viewType, btnElement) {
-            // Manage Tab Styles
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             btnElement.classList.add('active');
             
-            // Get DOM Elements
             const treeWorkspace = document.getElementById('main-workspace');
             const registryWorkspace = document.getElementById('registry-workspace');
             const inspectionPanel = document.getElementById('inspection-panel');
             const filterGroup = document.getElementById('filter-group');
             const treeActions = document.getElementById('tree-actions');
 
-            // Logic for the Repository / Registry HTML page
             if (viewType === 'REPO') {
                 treeWorkspace.style.display = 'none';
                 inspectionPanel.style.display = 'none';
                 filterGroup.style.display = 'none';
                 treeActions.style.display = 'none';
                 registryWorkspace.style.display = 'block';
-            } 
-            // Logic for the Visual D3 Trees
-            else {
+            } else {
                 treeWorkspace.style.display = 'block';
                 inspectionPanel.style.display = 'flex';
                 registryWorkspace.style.display = 'none';
                 
-                // Only show filters and expand/collapse actions for the PEQ tree
                 const isPEQ = (viewType === 'PEQ');
                 filterGroup.style.display = isPEQ ? 'block' : 'none';
                 treeActions.style.display = isPEQ ? 'block' : 'none';
@@ -411,7 +465,7 @@
             }
         }
 
-        // Boot the application
+        // Boot
         initializeTree(masterPEQData);
 
     </script>
