@@ -317,7 +317,15 @@
                                 { name: "30.5 High Pressure", desc: "30.5 High Pressure", source: "MISSING", initialLevel: 2, finalLevel: 2, mitigation: "HAZOP-937 (in progress)" }
                             ]
                         }, 
-                        { name: "CRYD", desc: "Cryodistribution Fails", source: "L2 System" }
+                        { 
+                            name: "CRYD", desc: "Cryodistribution Fails", source: "L2 System",
+                            children: [
+                                { name: "1.2.1 Low Flow Filter Clog", desc: "1.2.1 Low / No Flow leading to clogged filter", source: "MISSING", initialLevel: 2, finalLevel: 1, mitigation: "HAZOP-727" },
+                                { name: "Non-Impactful Group", desc: "Non-Impactful Failure Modes: (1.2.2, 1.4.1, 1.4.3, 1.5.2, 1.7.1, 2.4.1)", source: "MISSING", initialLevel: 1, finalLevel: "N/A", mitigation: "N/A", peqOverride: 0 },
+                                { name: "1.2.3 Low Flow Valve Cls", desc: "1.2.3 Low / No Flow leading to inadvertent valve closed", source: "MISSING", initialLevel: 3, finalLevel: 1, mitigation: "HAZOP 730" },
+                                { name: "1.2.4 Low Flow Valve Cls", desc: "1.2.4 Low / No Flow leading to inadvertent valve closed", source: "MISSING", initialLevel: 3, finalLevel: 1, mitigation: "HAZOP 730 +" }
+                            ]
+                        }
                     ] 
                 },
                 { name: "CWS", desc: "Cooling Water Systems", source: "L1 System", children: [{ name: "CCWS", desc: "Component Cooling Water", source: "L2 System" }, { name: "CLWS", desc: "Closed Loop Water System", source: "L2 System" }] },
