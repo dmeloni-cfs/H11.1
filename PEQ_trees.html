@@ -343,7 +343,26 @@
                         }
                     ] 
                 },
-                { name: "CWS", desc: "Cooling Water Systems", source: "L1 System", children: [{ name: "CCWS", desc: "Component Cooling Water", source: "L2 System" }, { name: "CLWS", desc: "Closed Loop Water System", source: "L2 System" }] },
+                { 
+                    name: "CWS", desc: "Cooling Water Systems", source: "L1 System", 
+                    children: [
+                        { 
+                            name: "CCWS", desc: "Component Cooling Water", source: "L2 System",
+                            children: [
+                                { name: "CCWS-P-00001A/B Disabled", desc: "CCWS-P-00001A/B Disabled - Overload surge on the line to the common Bus or to DH-E-00007 No flow from CCWS-P-00001A/B unmitigated TF quench", source: "MISSING", initialLevel: 3, finalLevel: 1, mitigation: "Redundant cooling added and pumps moved to separate busses - would need complex failure to activate" },
+                                { name: "HV-0241/0269 Closed", desc: "HV-0241 or HV-0269 closed, no flow through CRYO & TF COILS loop No CCWS to users: CRYOGENIC COMPRESSORS, COLD BOX, TF COIL POWER SUPPLY, TF COMPRESSORS, HE COMPRESSOR", source: "MISSING", initialLevel: 2, finalLevel: 1, mitigation: "Butterfly valves locked and updated PNID" },
+                                { name: "PCV-1220 FO (Power Loss)", desc: "PCV-1220 FAILS OPEN - LOSS OF POWER Bypass FO causing low flow to users: CRYOGENIC COMPRESSORS, COLD BOX, TF COIL POWER SUPPLY, TF COMPRESSORS, HE COMPRESSOR", source: "MISSING", initialLevel: 3, finalLevel: "1?", mitigation: "Confirmed valves are Fail Last Position (FLP) - which is the safe failure position.", peqOverride: 0 },
+                                { name: "PCV-1220 FO (Motor Fail)", desc: "PCV-1220 FAILS OPEN - MOTOR FAILURE Bypass FO causing low flow to users: CRYOGENIC COMPRESSORS, COLD BOX, TF COIL POWER SUPPLY, TF COMPRESSORS, HE COMPRESSOR", source: "MISSING", initialLevel: 3, finalLevel: 1, mitigation: "Confirmed valves are Fail Last Position (FLP) - which is the safe failure position." },
+                                { name: "PCV-1225 FO (Power Loss)", desc: "PCV-1225 FAILS OPEN - LOSS OF POWER Bypass FO causing low flow to users: COLD BOX, TF COIL POWER SUPPLY", source: "MISSING", initialLevel: 3, finalLevel: 1, mitigation: "Confirmed valves are Fail Last Position (FLP) - which is the safe failure position." },
+                                { name: "PCV-1225 FO (Motor Fail)", desc: "PCV-1225 FAILS OPEN - MOTOR FAILURE Bypass FO causing low flow to users: COLD BOX, TF COIL POWER SUPPLY", source: "MISSING", initialLevel: 3, finalLevel: 1, mitigation: "Confirmed valves are Fail Last Position (FLP) - which is the safe failure position." },
+                                { name: "TCV-0270 (Power Loss)", desc: "TCV-0270 - LOSS OF POWER No CCWS to users: CRYOGENIC COMPRESSORS, COLD BOX, TF COIL POWER SUPPLY, TF COMPRESSORS, HE COMPRESSOR", source: "MISSING", initialLevel: "?", finalLevel: "UNKNOWN", mitigation: "Confirmed failure position on procured valves - P&ID updated to reflect design accurately.", peqOverride: "UNCLEAR" },
+                                { name: "Maintenance / Downtime", desc: "Maintenance or Downtime, (1) cooling tower active Low flow to downstream users", source: "MISSING", initialLevel: 4, finalLevel: 1, mitigation: "Confirm size applicable, and users off, confirm mitigated quench possible for load, redundancy in cooling towers" },
+                                { name: "Loss of DH-E-00005", desc: "Loss of DH-E-00005. FLAG: Based on bus failure - PCR to split to buss, but rejected.", source: "MISSING", initialLevel: "N/A", finalLevel: "3?", mitigation: "All other failure modes have been mitigated.", peqOverride: 1 }
+                            ]
+                        }, 
+                        { name: "CLWS", desc: "Closed Loop Water System", source: "L2 System" }
+                    ] 
+                },
                 { name: "SERV", desc: "Service & Utility Systems", source: "L1 System", children: [{ name: "NDS", desc: "Nitrogen Distribution System", source: "L2 System" }, { name: "CDA", desc: "Compressed Dry Air System", source: "L2 System" }] }
             ]
         };
@@ -384,7 +403,7 @@
                     // It's a leaf node
                     if (!n.children || n.children.length === 0) {
                         let isNumericLvl = n.finalLevel !== undefined && !isNaN(n.finalLevel) && n.finalLevel !== "";
-                        let hasOverride = n.peqOverride !== undefined;
+                        let hasOverride = n.peqOverride !== undefined && n.peqOverride !== "UNCLEAR";
                         let hasValid = isNumericLvl || hasOverride;
 
                         let val = 0;
@@ -439,7 +458,7 @@
                 let hasData = false;
                 
                 let isNumericLvl = node.data.finalLevel !== undefined && !isNaN(node.data.finalLevel) && node.data.finalLevel !== "";
-                let hasOverride = node.data.peqOverride !== undefined;
+                let hasOverride = node.data.peqOverride !== undefined && node.data.peqOverride !== "UNCLEAR";
                 
                 // If it's a leaf node with valid data
                 if (isNumericLvl || hasOverride) {
@@ -500,7 +519,7 @@
                     if (!d.hasData) return "Total Expected PEQs: TBD";
                     
                     let isNumericLvl = d.data.finalLevel !== undefined && !isNaN(d.data.finalLevel) && d.data.finalLevel !== "";
-                    let hasOverride = d.data.peqOverride !== undefined;
+                    let hasOverride = d.data.peqOverride !== undefined && d.data.peqOverride !== "UNCLEAR";
                     let hasValidLevel = isNumericLvl || hasOverride;
 
                     if (!d.children && !d._children && hasValidLevel) {
@@ -522,7 +541,7 @@
                     if (!d.hasData) return "Total Expected PEQs: TBD";
                     
                     let isNumericLvl = d.data.finalLevel !== undefined && !isNaN(d.data.finalLevel) && d.data.finalLevel !== "";
-                    let hasOverride = d.data.peqOverride !== undefined;
+                    let hasOverride = d.data.peqOverride !== undefined && d.data.peqOverride !== "UNCLEAR";
                     let hasValidLevel = isNumericLvl || hasOverride;
 
                     if (!d.children && !d._children && hasValidLevel) return `Expected PEQ Contrib: ${d.peqTotal.toFixed(1)}`;
