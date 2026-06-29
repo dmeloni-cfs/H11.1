@@ -37,7 +37,7 @@
 
         /* Sidebar Controls */
         h2 { font-size: 1.1rem; margin-top: 0; margin-bottom: 15px; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-        .control-group { margin-bottom: 20px; }
+        .control-group { margin-bottom: 15px; }
         .control-label { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; display: block; text-transform: uppercase; letter-spacing: 1px; }
         
         select, .tab-btn, .action-btn {
@@ -107,7 +107,7 @@
 
         <div class="control-group" id="filter-group">
             <span class="control-label">Isolate Pathway</span>
-            <select id="pathway-filter" onchange="filterPathway(this.value)">
+            <select id="pathway-filter" onchange="applyFilters()">
                 <option value="ALL">Show All Systems</option>
                 <option value="MAGS">MAGS - Magnet Systems</option>
                 <option value="EPDS">EPDS - Power Dist.</option>
@@ -116,6 +116,16 @@
                 <option value="CRYO">CRYO - Cryogenics</option>
                 <option value="CWS">CWS - Cooling Water</option>
                 <option value="SERV">SERV - Utilities</option>
+            </select>
+        </div>
+
+        <div class="control-group" id="status-filter-group">
+            <span class="control-label">Filter by Status</span>
+            <select id="status-filter" onchange="applyFilters()">
+                <option value="ALL">Show All Nodes</option>
+                <option value="CONTRIBUTING">Contributing (>0 PEQs)</option>
+                <option value="MITIGATED">Mitigated (0 PEQs)</option>
+                <option value="TBD">TBD / Reassess</option>
             </select>
         </div>
 
@@ -157,7 +167,6 @@
         </div>
 
         <h2 style="font-size: 1.2rem;">Master Engineering Specification Registry</h2>
-        <p style="color: #d0d0d0; margin-bottom: 20px;">Centralized, audited configuration index containing FMECA, HAZOP parameters, and functional boundaries.</p>
         <table class="registry-table">
             <thead>
                 <tr>
@@ -211,32 +220,45 @@
         // 1. DATA AND SCORING LOGIC
         function scoreToPEQ(score) {
             const map = { 1: 0, 2: 0.1, 3: 1, 4: 10 };
-            return map[score] || 0;
+            return map[parseInt(score)] || 0;
         }
 
         const masterPEQData = {
             name: "PEQ", desc: "Pre-Emptive Quench Trigger Event", source: "Top Level",
             children: [
-                { name: "MAGS", desc: "Magnet Systems", source: "L1 System", children: [{ name: "CS", desc: "Central Solenoid Failure Modes", source: "L2 System" }] },
+                { 
+                    name: "MAGS", desc: "Magnet Systems", source: "L1 System", 
+                    children: [
+                        { 
+                            name: "CS", desc: "Central Solenoid Failure Modes", source: "L2 System",
+                            children: [
+                                { name: "CS Temp / Struct Issue", desc: "CS Magnet Gets too Warm leading to structural issues", source: "MISSING", initialLevel: "N/A", finalLevel: "TBD", mitigation: "SDDIPS-1243 (QPS-628, QPS-735)", peqOverride: 2 }
+                            ]
+                        }
+                    ] 
+                },
                 { 
                     name: "EPDS", desc: "Electrical Power Distribution", source: "L1 System", 
                     children: [
                         { 
                             name: "EXE", desc: "Experimental Electrical Power Failure", source: "L2 System",
                             children: [
-                                {
-                                    name: "Loss of Power Supply Controls",
-                                    desc: "Failure of controls leading to unmitigated current ramp rate violations.",
-                                    source: "FMECA-EXE-001-A",
-                                    initialLevel: 2,
-                                    finalLevel: 2,
-                                    mitigation: "SDDIPS-1284"
-                                }
+                                { name: "Loss of Power Supply Controls", desc: "Failure of controls leading to unmitigated current ramp rate violations.", source: "FMECA-EXE-001-A", initialLevel: 2, finalLevel: 2, mitigation: "SDDIPS-1284" }
                             ] 
                         }
                     ] 
                 },
-                { name: "VACV", desc: "Vacuum Vessel Systems", source: "L1 System", children: [{ name: "Leaks", desc: "Vacuum Leak Modes", source: "L2 System" }] },
+                { 
+                    name: "VACV", desc: "Vacuum Vessel Systems", source: "L1 System", 
+                    children: [
+                        { 
+                            name: "Leaks", desc: "Vacuum Leak Modes", source: "L2 System",
+                            children: [
+                                { name: "He Piping Closeout Leak", desc: "Leaks found in Helium Piping after Cryostat Closeout", source: "MISSING", initialLevel: "n/a", finalLevel: "TBD", mitigation: "SDDIPS-1193", peqOverride: 2 }
+                            ]
+                        }
+                    ] 
+                },
                 { 
                     name: "VACP", desc: "Vacuum Pumping Systems", source: "L1 System", 
                     children: [
@@ -263,7 +285,41 @@
                         }
                     ] 
                 },
-                { name: "CRYO", desc: "Cryogenic Systems", source: "L1 System", children: [{ name: "CRYP", desc: "Cryoplant Failures", source: "L2 System" }, { name: "CRYD", desc: "Cryodistribution Fails", source: "L2 System" }] },
+                { 
+                    name: "CRYO", desc: "Cryogenic Systems", source: "L1 System", 
+                    children: [
+                        { 
+                            name: "CRYP", desc: "Cryoplant Failures", source: "L2 System",
+                            children: [
+                                { name: "2.2 Low / No Flow", desc: "2.2 Low / No Flow", source: "MISSING", initialLevel: 2, finalLevel: 1, mitigation: "HAZOP-825 Develop lock open and lock close valves for use in operation" },
+                                { name: "4.5.1 High Press Vac Loss", desc: "4.5.1 High Pressure leads to loss of vacuum in the cold box", source: "MISSING", initialLevel: 2, finalLevel: 2, mitigation: "HAZOP-829 Evaluate how TF Quench mitigation plan is impacted by coldbox loss of insulating vacuum" },
+                                { name: "9A.2.1 Low Flow Pwr Loss", desc: "9A.2.1 Low / No Flow leading to loss of power, both compressors down", source: "MISSING", initialLevel: 3, finalLevel: 2, mitigation: "HAZOP-924, HAZOP-925, HAZOP-926 Confirm Electrical Sub Station power switches over in under 200 ms" },
+                                { name: "9A.2.3 Low Flow CWS Loss", desc: "9A.2.3 Low / No Flow leading to loss of cooling water", source: "MISSING", initialLevel: 3, finalLevel: "Missing", mitigation: "HAZOP-843 Evaluate CWS single point failures and redundancy" },
+                                { name: "9B.9 Oil Contaminants CWS", desc: "9B.9 Contaminants - oil in the cooling water", source: "MISSING", initialLevel: 2, finalLevel: "TBD", mitigation: "MISSING" },
+                                { name: "9D.2.1 Low Flow CWS Loss", desc: "9D.2.1 Low / No Flow leading to loss of cooling water", source: "MISSING", initialLevel: 2, finalLevel: "TBD", mitigation: "HAZOP-843, TBD / FLAG same as 9A" },
+                                { name: "11.4.1 Misdirected Flow", desc: "11.4.1 Misdirected flow from operator / control logic error", source: "MISSING", initialLevel: 2, finalLevel: 1, mitigation: "HAZOP-852, HAZOP-853" },
+                                { name: "15.3 Reverse Flow", desc: "15.3 Reverse Flow", source: "MISSING", initialLevel: 3, finalLevel: 1, mitigation: "HAZOP-933" },
+                                { name: "16.5 High Press Vac Loss", desc: "16.5 High Pressure leading to loss of vacuum in the cold box", source: "MISSING", initialLevel: 2, finalLevel: 2, mitigation: "HAZOP-829" },
+                                { name: "17.5 High Press Vac Loss", desc: "17.5 High Pressure leading to loss of vacuum in the cold box", source: "MISSING", initialLevel: 2, finalLevel: 2, mitigation: "HAZOP-829, 0.1 - Flag same as 16.5" },
+                                { name: "Non-Impactful Group", desc: "Non-Impactful: (18.2.6, 18.4.3, 18.4.6, 18.4.8, 18A.4.6, 20.5.1, 29.1.4, 29.2.7, 29.10.3, 30.1, 30.2, 32.4, 34.1)", source: "MISSING", initialLevel: 1, finalLevel: "N/A", mitigation: "N/A", peqOverride: 0 },
+                                { name: "18.4.4 Misdirected Valve Cls", desc: "18.4.4 Misdirected Flow leads to inadvertent valve close", source: "MISSING", initialLevel: 2, finalLevel: 2, mitigation: "HAZOP-859 Reconfiguration" },
+                                { name: "20.4.1 Misdirected Valve Opn", desc: "20.4.1 Misdirected flow leads to inadvertent valve opened", source: "MISSING", initialLevel: 2, finalLevel: 2, mitigation: "HAZOP-938 (in progress) Add CONOPS for system health check" },
+                                { name: "20.5.1.1 High Press Vac Loss", desc: "20.5.1.1 High Pressure leads to loss of vacuum in the cold box", source: "MISSING", initialLevel: 2, finalLevel: 2, mitigation: "HAZOP-937 (in progress) populate CRYP loss of insulating hazards" },
+                                { name: "23.3 Low Flow Valve Cls", desc: "23.3 Low / No Flow leading to inadvertent valve closing", source: "MISSING", initialLevel: "?", finalLevel: "TBD", mitigation: "Missing" },
+                                { name: "25.1.4 High Flow Valve Opn", desc: "25.1.4 High Flow leading to inadvertent valve opening", source: "MISSING", initialLevel: 2, finalLevel: "TBD", mitigation: "missing" },
+                                { name: "29.1.5 High Flow Valve Opn", desc: "29.1.5 High flow leading to inadvertent valve opening", source: "MISSING", initialLevel: 2, finalLevel: 1, mitigation: "HAZOP-939 Develop plan to prevent CRYP induced reverse flow TF ON" },
+                                { name: "29.5.1 High Press Vac Loss", desc: "29.5.1 High pressure leads to loss of vacuum in the cold box", source: "MISSING", initialLevel: 2, finalLevel: 2, mitigation: "HAZOP-937 (in progress)" },
+                                { name: "30.4.1 Misdirected Flow", desc: "30.4.1 Misdirected flow", source: "MISSING", initialLevel: 2, finalLevel: 2, mitigation: "HAZOP-938 (in progress)" },
+                                { name: "30.4.2 Misdirected Flow", desc: "30.4.2 Misdirected flow", source: "MISSING", initialLevel: 2, finalLevel: 2, mitigation: "HAZOP-938 (in progress)" },
+                                { name: "30.4.3 Misdirected Flow", desc: "30.4.3 Misdirected flow", source: "MISSING", initialLevel: 2, finalLevel: 2, mitigation: "HAZOP-938 (in progress)" },
+                                { name: "30.4.4 Misdirected Flow", desc: "30.4.4 Misdirected flow", source: "MISSING", initialLevel: 2, finalLevel: 1, mitigation: "HAZOP-878 Operational mitigation plan" },
+                                { name: "30.4.7 Misdirected Flow", desc: "30.4.7 Misdirected flow", source: "MISSING", initialLevel: 2, finalLevel: 1, mitigation: "HAZOP-879 Eval Heat Load and flow rates for failure" },
+                                { name: "30.5 High Pressure", desc: "30.5 High Pressure", source: "MISSING", initialLevel: 2, finalLevel: 2, mitigation: "HAZOP-937 (in progress)" }
+                            ]
+                        }, 
+                        { name: "CRYD", desc: "Cryodistribution Fails", source: "L2 System" }
+                    ] 
+                },
                 { name: "CWS", desc: "Cooling Water Systems", source: "L1 System", children: [{ name: "CCWS", desc: "Component Cooling Water", source: "L2 System" }, { name: "CLWS", desc: "Closed Loop Water System", source: "L2 System" }] },
                 { name: "SERV", desc: "Service & Utility Systems", source: "L1 System", children: [{ name: "NDS", desc: "Nitrogen Distribution System", source: "L2 System" }, { name: "CDA", desc: "Compressed Dry Air System", source: "L2 System" }] }
             ]
@@ -286,10 +342,48 @@
         let i = 0, duration = 500, root;
         const treeMap = d3.tree().nodeSize([boxHeight * 1.6, boxWidth * 2.2]);
 
-        // 3. TREE ACTIONS & FILTERING
-        function filterPathway(systemName) {
-            if (systemName === "ALL") { initializeTree(masterPEQData); return; }
-            const filteredData = { ...masterPEQData, children: masterPEQData.children.filter(child => child.name === systemName) };
+        // 3. TREE ACTIONS & DYNAMIC MULTI-FILTERING
+        function applyFilters() {
+            const pathwayVal = document.getElementById('pathway-filter').value;
+            const statusVal = document.getElementById('status-filter').value;
+            
+            // Deep clone to safely destruct/prune
+            let filteredData = JSON.parse(JSON.stringify(masterPEQData));
+
+            // 1. Apply Pathway Filter
+            if (pathwayVal !== "ALL") {
+                filteredData.children = filteredData.children.filter(child => child.name === pathwayVal);
+            }
+
+            // 2. Apply Status Filter
+            if (statusVal !== "ALL") {
+                function keepNode(n) {
+                    // It's a leaf node
+                    if (!n.children || n.children.length === 0) {
+                        let isNumericLvl = n.finalLevel !== undefined && !isNaN(n.finalLevel) && n.finalLevel !== "";
+                        let hasOverride = n.peqOverride !== undefined;
+                        let hasValid = isNumericLvl || hasOverride;
+
+                        let val = 0;
+                        if (hasOverride) val = n.peqOverride;
+                        else if (isNumericLvl) val = scoreToPEQ(n.finalLevel);
+
+                        if (statusVal === "CONTRIBUTING") return hasValid && val > 0;
+                        if (statusVal === "MITIGATED") return hasValid && val === 0;
+                        if (statusVal === "TBD") return !hasValid;
+                        return true;
+                    } else {
+                        // It's an internal node - keep it if it has at least one valid child
+                        n.children = n.children.filter(keepNode);
+                        return n.children.length > 0;
+                    }
+                }
+                
+                if (filteredData.children) {
+                    filteredData.children = filteredData.children.filter(keepNode);
+                }
+            }
+
             initializeTree(filteredData);
         }
 
@@ -316,21 +410,24 @@
             const nodes = treeData.descendants();
             const links = treeData.descendants().slice(1);
 
-            // BOTTOM-UP PEQ CALCULATION ROLLUP (With TBD and UNKNOWN logic)
+            // BOTTOM-UP PEQ CALCULATION ROLLUP
             root.eachAfter(node => {
                 let currentTotal = 0;
                 let hasData = false;
                 
-                // If it's a leaf node with a valid number for finalLevel or score
-                let hasValidLevel = (node.data.finalLevel !== undefined && node.data.finalLevel !== "UNKNOWN") || 
-                                    (node.data.score !== undefined && node.data.score !== "UNKNOWN");
-
-                if (hasValidLevel) {
-                    let lvl = node.data.finalLevel !== undefined ? node.data.finalLevel : node.data.score;
-                    currentTotal = scoreToPEQ(lvl);
+                let isNumericLvl = node.data.finalLevel !== undefined && !isNaN(node.data.finalLevel) && node.data.finalLevel !== "";
+                let hasOverride = node.data.peqOverride !== undefined;
+                
+                // If it's a leaf node with valid data
+                if (isNumericLvl || hasOverride) {
+                    if (hasOverride) {
+                        currentTotal = node.data.peqOverride;
+                    } else {
+                        currentTotal = scoreToPEQ(node.data.finalLevel);
+                    }
                     hasData = true;
                 } 
-                // If it has children, sum their contributions ONLY if they have valid numerical data
+                // If it has children, sum their contributions ONLY if they have valid data
                 else if (node.children || node._children) {
                     let kids = node.children || node._children;
                     kids.forEach(child => {
@@ -379,8 +476,9 @@
                 .text(d => {
                     if (!d.hasData) return "Total Expected PEQs: TBD";
                     
-                    let hasValidLevel = (d.data.finalLevel !== undefined && d.data.finalLevel !== "UNKNOWN") || 
-                                        (d.data.score !== undefined && d.data.score !== "UNKNOWN");
+                    let isNumericLvl = d.data.finalLevel !== undefined && !isNaN(d.data.finalLevel) && d.data.finalLevel !== "";
+                    let hasOverride = d.data.peqOverride !== undefined;
+                    let hasValidLevel = isNumericLvl || hasOverride;
 
                     if (!d.children && !d._children && hasValidLevel) {
                         return `Expected PEQ Contrib: ${d.peqTotal.toFixed(1)}`;
@@ -400,8 +498,9 @@
                 .text(d => {
                     if (!d.hasData) return "Total Expected PEQs: TBD";
                     
-                    let hasValidLevel = (d.data.finalLevel !== undefined && d.data.finalLevel !== "UNKNOWN") || 
-                                        (d.data.score !== undefined && d.data.score !== "UNKNOWN");
+                    let isNumericLvl = d.data.finalLevel !== undefined && !isNaN(d.data.finalLevel) && d.data.finalLevel !== "";
+                    let hasOverride = d.data.peqOverride !== undefined;
+                    let hasValidLevel = isNumericLvl || hasOverride;
 
                     if (!d.children && !d._children && hasValidLevel) return `Expected PEQ Contrib: ${d.peqTotal.toFixed(1)}`;
                     if (d.depth === 0) return `Total System PEQs: ${d.peqTotal.toFixed(1)}`;
@@ -475,12 +574,14 @@
             const registryWorkspace = document.getElementById('registry-workspace');
             const inspectionPanel = document.getElementById('inspection-panel');
             const filterGroup = document.getElementById('filter-group');
+            const statusGroup = document.getElementById('status-filter-group');
             const treeActions = document.getElementById('tree-actions');
 
             if (viewType === 'REPO') {
                 treeWorkspace.style.display = 'none';
                 inspectionPanel.style.display = 'none';
                 filterGroup.style.display = 'none';
+                statusGroup.style.display = 'none';
                 treeActions.style.display = 'none';
                 registryWorkspace.style.display = 'block';
             } else {
@@ -490,11 +591,13 @@
                 
                 const isPEQ = (viewType === 'PEQ');
                 filterGroup.style.display = isPEQ ? 'block' : 'none';
+                statusGroup.style.display = isPEQ ? 'block' : 'none';
                 treeActions.style.display = isPEQ ? 'block' : 'none';
 
                 if (isPEQ) {
                     document.getElementById('pathway-filter').value = "ALL";
-                    initializeTree(masterPEQData);
+                    document.getElementById('status-filter').value = "ALL";
+                    applyFilters();
                 } else if (viewType === 'UNMIT') {
                     initializeTree(unmitigatedData);
                 }
