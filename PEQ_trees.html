@@ -323,7 +323,22 @@
                                 { name: "1.2.1 Low Flow Filter Clog", desc: "1.2.1 Low / No Flow leading to clogged filter", source: "MISSING", initialLevel: 2, finalLevel: 1, mitigation: "HAZOP-727" },
                                 { name: "Non-Impactful Group", desc: "Non-Impactful Failure Modes: (1.2.2, 1.4.1, 1.4.3, 1.5.2, 1.7.1, 2.4.1)", source: "MISSING", initialLevel: 1, finalLevel: "N/A", mitigation: "N/A", peqOverride: 0 },
                                 { name: "1.2.3 Low Flow Valve Cls", desc: "1.2.3 Low / No Flow leading to inadvertent valve closed", source: "MISSING", initialLevel: 3, finalLevel: 1, mitigation: "HAZOP 730" },
-                                { name: "1.2.4 Low Flow Valve Cls", desc: "1.2.4 Low / No Flow leading to inadvertent valve closed", source: "MISSING", initialLevel: 3, finalLevel: 1, mitigation: "HAZOP 730 +" }
+                                { name: "1.2.4 Low Flow Valve Cls", desc: "1.2.4 Low / No Flow leading to inadvertent valve closed. FLAG: Needs review due to similarity to another CRYD node.", source: "MISSING", initialLevel: 3, finalLevel: 1, mitigation: "HAZOP 730, HAZOP 731, HAZOP 734, HAZOP 739" },
+                                { name: "1.2.6 Low Flow Valve Opn", desc: "1.2.6 Low / no flow leading to inadvertent valve opening", source: "MISSING", initialLevel: 3, finalLevel: 1, mitigation: "HAZOP 730" },
+                                { name: "1.4.2 Misdirected He Leak", desc: "1.4.2 Misdirected Flow leading to helium leak to atmosphere", source: "MISSING", initialLevel: 4, finalLevel: 1, mitigation: "expert knowledge" },
+                                { name: "1.4.7 Misdirected He Leak", desc: "1.4.7 Misdirected flow leading to helium leak", source: "MISSING", initialLevel: 3, finalLevel: 1, mitigation: "HAZOP 740" },
+                                { name: "1.4.8 Misdirected FV125 Fail", desc: "1.4.8 Misdirected flow FV125 Failure during DT", source: "MISSING", initialLevel: 3, finalLevel: "UNKNOWN", mitigation: "Mitigation partially missing - cause FEED Quench ?" },
+                                { name: "1.5.3 High Press Degrade LN2", desc: "1.5.3 High pressure leading to degraded LN2", source: "MISSING", initialLevel: 3, finalLevel: 1, mitigation: "HAZOP 745" },
+                                { name: "1.9.3 Contaminants Clog FEED", desc: "1.9.3 Contaminants leave FEED clogged", source: "MISSING", initialLevel: 3, finalLevel: 2, mitigation: "HAZOP 747" },
+                                { name: "2.2 Low / No flow", desc: "2.2 Low / No flow", source: "MISSING", initialLevel: 2, finalLevel: 1, mitigation: "HAZOP 727" },
+                                { name: "2.4.2 Misdirected He Leak", desc: "2.4.2 Misdirected flow leading to helium leak to atmosphere. FLAG: same as 1.4.2 ?", source: "MISSING", initialLevel: 4, finalLevel: 1, mitigation: "Expert knowledge" },
+                                { name: "2.4.5 Misdirected Valve Opn", desc: "2.4.5 Misdirected flow leading to inadvertent valve opening", source: "MISSING", initialLevel: 3, finalLevel: 1, mitigation: "HAZOP 730" },
+                                { name: "2.4.6 Misdirected He Leak", desc: "2.4.6 Misdirected flow leading to helium leak through valve", source: "MISSING", initialLevel: 3, finalLevel: 1, mitigation: "HAZOP 740" },
+                                { name: "2.5.3 High Press Degrade LN2", desc: "2.5.3 High pressure leads to degraded LN2 flow", source: "MISSING", initialLevel: 3, finalLevel: 1, mitigation: "HAZOP 745" },
+                                { name: "8.2.3 Valve Close Inadvertent", desc: "8.2.3 Inadvertent closing of valves", source: "MISSING", initialLevel: 2, finalLevel: "UNKNOWN", mitigation: "HAZOP 771" },
+                                { name: "8.2.5 Valve Close Inadvertent", desc: "8.2.5 Inadvertent closing of valves. FLAG: similar to 8.2.3", source: "MISSING", initialLevel: 2, finalLevel: "UNKNOWN", mitigation: "HAZOP 771" },
+                                { name: "9.9.2 Maint Contaminants", desc: "9.9.2 Contaminants from maintenance", source: "MISSING", initialLevel: 2, finalLevel: 1, mitigation: "Cleanliness procedure in place" },
+                                { name: "9.9.3 Part Fail Contaminants", desc: "9.9.3 Contaminants from part failure", source: "MISSING", initialLevel: 3, finalLevel: 1, mitigation: "Filter mitigation strategy to remove clog" }
                             ]
                         }
                     ] 
